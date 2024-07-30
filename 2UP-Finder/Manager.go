@@ -1,6 +1,7 @@
 package MatchFinder
 
 import (
+	"Adam/discord-twoup/MatchFinder"
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -62,12 +63,12 @@ func Get2UpData() ([]Match, error) {
 	response, err := makeQuery(query)
 	if err != nil {
 		return nil, err
-	} 
+	}
 
 	err = json.Unmarshal(response, &queryResponse)
 	if err != nil {
 		return nil, err
-	} 
+	}
 
 	return queryResponse.Matches, nil
 }
@@ -86,8 +87,8 @@ func makeQuery(q Query) (json.RawMessage, error) {
 	queryString := string(queryBytes)
 
 	fQ := FullQuery{
-		Query: queryString,
-		Variables: q,
+		Query:         queryString,
+		Variables:     q,
 		OperationName: "GetBestMatches",
 	}
 
