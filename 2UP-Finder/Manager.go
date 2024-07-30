@@ -1,7 +1,6 @@
 package MatchFinder
 
 import (
-	"Adam/discord-twoup/MatchFinder"
 	"bytes"
 	"encoding/json"
 	"fmt"
