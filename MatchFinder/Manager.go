@@ -73,7 +73,7 @@ func Get2UpData() ([]Match, error) {
 }
 
 func makeQuery(q Query) (json.RawMessage, error) {
-	queryFile, err := os.Open("getBestMatches.graphql")
+	queryFile, err := os.Open("MatchFinder/getBestMatches.graphql")
 	if err != nil {
 		return nil, err
 	}
