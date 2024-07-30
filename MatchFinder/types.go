@@ -40,7 +40,7 @@ type Query struct {
 	MarketGroups     []string        `json:"permittedMarketGroups"`
 	Sports           []string        `json:"permittedSports"`
 	Skip             *int            `json:"skip"`
-	EventGroups      []*string       `json:"permittedEventGroups"`
+	EventGroups      []string        `json:"permittedEventGroups"`
 	CommissionRates  []CommisionRate `json:"commissionRates"`
 }
 
