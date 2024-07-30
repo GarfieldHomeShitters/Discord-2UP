@@ -50,6 +50,7 @@ func Get2UpData() ([]Match, error) {
 		LastUpdate:   21600,
 		MarketGroups: []string{"match-odds"},
 		Sports:       []string{"soccer"},
+		EventGroups:  []string{},
 		CommissionRates: []CommisionRate{
 			{Exchange: "betdaq", Rate: 0},
 			{Exchange: "betfair", Rate: 5},
