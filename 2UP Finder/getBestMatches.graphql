@@ -1,0 +1,102 @@
+query GetBestMatches(
+  $ratingType: String!
+  $bookmaker: [String]
+  $exchange: [String]
+  $permittedSports: [String]
+  $permittedMarketGroups: [String]
+  $minOdds: String
+  $maxOdds: String
+  $minRating: String
+  $maxRating: String
+  $minLiquidity: String
+  $timeframeStart: String
+  $timeframeEnd: String
+  $searchByEventName: String
+  $excludeDraw: Boolean
+  $limit: Int
+  $cap: Int
+  $updatedWithinSeconds: Int
+  $skip: Int
+  $permittedEventGroups: [String]
+  $commissionRates: [CommissionRate]
+) {
+  getBestMatches(
+    ratingType: $ratingType
+    bookmaker: $bookmaker
+    exchange: $exchange
+    permittedSports: $permittedSports
+    permittedMarketGroups: $permittedMarketGroups
+    minOdds: $minOdds
+    maxOdds: $maxOdds
+    minRating: $minRating
+    maxRating: $maxRating
+    minLiquidity: $minLiquidity
+    timeframeStart: $timeframeStart
+    timeframeEnd: $timeframeEnd
+    searchByEventName: $searchByEventName
+    excludeDraw: $excludeDraw
+    limit: $limit
+    cap: $cap
+    updatedWithinSeconds: $updatedWithinSeconds
+    skip: $skip
+    permittedEventGroups: $permittedEventGroups
+    commissionRates: $commissionRates
+  ) {
+    eventName
+    id
+    startAt
+    selectionId
+    marketId
+    eventId
+    back {
+      updatedAt
+      odds
+      fetchedAt
+      deepLink
+      bookmaker {
+        active
+        code
+        displayName
+        id
+        logo
+      }
+    }
+    lay {
+      bookmaker {
+        active
+        code
+        displayName
+        id
+        logo
+      }
+      deepLink
+      fetchedAt
+      updatedAt
+      odds
+      liquidity
+      betSlip {
+        marketId
+        selectionId
+      }
+    }
+    eventGroup {
+      displayName
+      id
+      sourceName
+      sport
+    }
+    marketGroup {
+      displayName
+      id
+      sport
+    }
+    marketName
+    rating
+    selectionName
+    snr
+    sport {
+      displayName
+      id
+    }
+  }
+}
