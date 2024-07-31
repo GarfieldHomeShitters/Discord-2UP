@@ -19,24 +19,25 @@ const (
 
 const url = "https://api.oddsplatform.profitaccumulator.com/graphql"
 
-func Find(queryType QueryType) []Match {
+func Find(queryType QueryType) ([]Match, *string) {
+	errorMessage := "Invalid Query Type"
 	switch queryType {
 	case TwoUp:
 		resp, err := Get2UpData()
 		if err != nil {
-			fmt.Println("Error getting 2UP Data:", err)
-			return nil
+			errorMessage = fmt.Sprintln("Error getting 2UP Data:", err)
+			return nil, &errorMessage
 		}
-		return resp
+		return resp, nil
 	}
-	return nil
+	return nil, &errorMessage
 }
 
 func Get2UpData() ([]Match, error) {
 	var queryResponse MatchResponse
-	MinRating := "90"
+	MinRating := "96"
 	MinOdds := "2"
-	MaxOdds := "30"
+	MaxOdds := "6"
 	MaxRating := "100"
 
 	query := Query{
