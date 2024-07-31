@@ -19,7 +19,7 @@ type AllowedMentions struct {
 }
 
 type Field struct {
-	Name   *string `json:"name,omitempty"`
+	Name   string  `json:"name,omitempty"`
 	Value  *string `json:"value,omitempty"`
 	Inline *bool   `json:"inline,omitempty"`
 }
