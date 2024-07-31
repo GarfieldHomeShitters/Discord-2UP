@@ -1,6 +1,10 @@
 package MatchFinder
 
 type MatchResponse struct {
+	Data MatchList `json:"data"`
+}
+
+type MatchList struct {
 	Matches []Match `json:"getBestMatches"`
 }
 
@@ -39,7 +43,7 @@ type Query struct {
 	MaxOdds          *string         `json:"maxOdds"`
 	MarketGroups     []string        `json:"permittedMarketGroups"`
 	Sports           []string        `json:"permittedSports"`
-	Skip             *int            `json:"skip"`
+	Skip             int             `json:"skip"`
 	EventGroups      []string        `json:"permittedEventGroups"`
 	CommissionRates  []CommisionRate `json:"commissionRates"`
 }
@@ -50,9 +54,9 @@ type CommisionRate struct {
 }
 
 type FullQuery struct {
-	Query         string `json:"Query"`
-	Variables     Query  `json:"Variables"`
-	OperationName string `json:"OperationName"`
+	OperationName string `json:"operationName"`
+	Variables     Query  `json:"variables"`
+	Query         string `json:"query"`
 }
 
 type QueryType int
