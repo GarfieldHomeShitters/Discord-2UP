@@ -2,6 +2,7 @@ package MatchFinder
 
 import (
 	"bytes"
+	"compress/gzip"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -35,15 +36,18 @@ func Get2UpData() ([]Match, error) {
 	var queryResponse MatchResponse
 	MinRating := "90"
 	MinOdds := "2"
+	MaxOdds := "30"
 	MaxRating := "100"
 
 	query := Query{
 		RatingType:   "rating",
 		MinOdds:      &MinOdds,
+		MaxOdds:      &MaxOdds,
 		MinRating:    &MinRating,
 		MaxRating:    &MaxRating,
 		Cap:          100,
 		Limit:        500,
+		Skip:         0,
 		ExcludeDraws: true,
 		Bookmakers:   []string{"bet365"},
 		Exchanges:    []string{"smarketsexchange"},
@@ -70,7 +74,7 @@ func Get2UpData() ([]Match, error) {
 		return nil, err
 	}
 
-	return queryResponse.Matches, nil
+	return queryResponse.Data.Matches, nil
 }
 
 func makeQuery(q Query) (json.RawMessage, error) {
@@ -78,7 +82,12 @@ func makeQuery(q Query) (json.RawMessage, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer queryFile.Close()
+	defer func(queryFile *os.File) {
+		err := queryFile.Close()
+		if err != nil {
+			fmt.Println("Error closing file:", err)
+		}
+	}(queryFile)
 
 	queryBytes, err := io.ReadAll(queryFile)
 	if err != nil {
@@ -97,11 +106,48 @@ func makeQuery(q Query) (json.RawMessage, error) {
 		return nil, err
 	}
 
-	resp, err := http.Post(url, "application/json", bytes.NewBuffer(fQData))
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(fQData))
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
 
-	return io.ReadAll(resp.Body)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("User-Agent", "Mozilla/5.0")
+	req.Header.Set("Cache-Control", "no-cache")
+	req.Header.Set("Accept-Encoding", "gzip, deflate, br")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			fmt.Println("Error closing Body:", err)
+		}
+	}(resp.Body)
+
+	var response io.Reader = resp.Body
+	if resp.Header.Get("Content-Encoding") == "gzip" {
+		gzipReader, err := gzip.NewReader(resp.Body)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create gzip reader: %v", err)
+		}
+		defer func(gzipReader *gzip.Reader) {
+			err := gzipReader.Close()
+			if err != nil {
+				fmt.Printf("failed to close reader: %v\n", err)
+			}
+		}(gzipReader)
+		response = gzipReader
+	}
+
+	body, err := io.ReadAll(response)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read gzipped response body: %v", err)
+	}
+
+	return body, nil
 }
