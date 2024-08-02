@@ -17,20 +17,26 @@ const (
 	ValueBet   QueryType = iota
 )
 
+type MatchError struct {
+	err string
+}
+
+func (e MatchError) Error() string {
+	return fmt.Sprintf("[Match API Error] %s", e.err)
+}
+
 const url = "https://api.oddsplatform.profitaccumulator.com/graphql"
 
-func Find(queryType QueryType) ([]Match, *string) {
-	errorMessage := "Invalid Query Type"
+func Find(queryType QueryType) ([]Match, error) {
 	switch queryType {
 	case TwoUp:
 		resp, err := Get2UpData()
 		if err != nil {
-			errorMessage = fmt.Sprintln("Error getting 2UP Data:", err)
-			return nil, &errorMessage
+			return nil, MatchError{fmt.Sprintf("Error getting 2UP Data: %s", err.Error())}
 		}
 		return resp, nil
 	}
-	return nil, &errorMessage
+	return nil, MatchError{fmt.Sprintf("Invalid query type")}
 }
 
 func Get2UpData() ([]Match, error) {
