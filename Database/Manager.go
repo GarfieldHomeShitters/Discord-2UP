@@ -12,13 +12,9 @@ type Database interface {
 	Connect() error
 	Close() error
 	SelectTable(string) error
-	Get(string) (error, string)
-	Put(string, []byte) error
+	Get(string, string) (error, *string)
+	Put(interface{}) error
 	Delete(string, string) error
-}
-
-type Handler struct {
-	db Database
 }
 
 type OracleDB struct {
@@ -72,14 +68,14 @@ func (db *OracleDB) SelectTable(name string) error {
 	return nil
 }
 
-func (db *OracleDB) Get(Field string, Value string) (*string, error) {
+func (db *OracleDB) Get(Field string, Value string) (error, *string) {
 	callTrace := fmt.Sprintf("\n\tTable:\t%s\n\tGet:\t%s:\t%s", *db.Table, Field, Value)
 	if !db.Connected {
-		return nil, NewDatabaseError(callTrace, "Client not connected")
+		return NewDatabaseError(callTrace, "Client not connected"), nil
 	}
 
 	if db.Table == nil {
-		return nil, NewDatabaseError(callTrace, "Table is nil")
+		return NewDatabaseError(callTrace, "Table is nil"), nil
 	}
 
 	keyMap := &types.MapValue{}
@@ -90,13 +86,13 @@ func (db *OracleDB) Get(Field string, Value string) (*string, error) {
 	}
 	res, err := db.Client.Get(req)
 	if err != nil {
-		return nil, NewDatabaseError(callTrace, err.Error())
+		return NewDatabaseError(callTrace, err.Error()), nil
 	}
 	if !res.RowExists() {
-		return nil, NewDatabaseError(callTrace, "No row exists")
+		return NewDatabaseError(callTrace, "No row exists"), nil
 	}
 	json := res.ValueAsJSON()
-	return &json, nil
+	return nil, &json
 }
 
 func (db *OracleDB) Put(record interface{}) error {
@@ -172,4 +168,14 @@ func (e *DbError) Error() string {
 func NewDatabaseError(where string, what string) *DbError {
 	msg := fmt.Sprintf("\t%s \n\t%s", where, what)
 	return &DbError{message: msg}
+}
+
+func NewOracleConnection(filepath string, region common.Region) *OracleDB {
+	return &OracleDB{
+		Connected:  false,
+		ConfigPath: filepath,
+		Region:     region,
+		Client:     nil,
+		Table:      nil,
+	}
 }
