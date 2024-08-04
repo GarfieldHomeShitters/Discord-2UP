@@ -6,6 +6,7 @@ import (
 	"Adam/discord-twoup/MatchFinder"
 	"context"
 	"fmt"
+	"github.com/oracle/nosql-go-sdk/nosqldb/common"
 	"log"
 )
 
@@ -104,7 +105,7 @@ func CreateNotificationHandler() *NotificationHandler {
 
 func CreateDatabaseHandler() *DatabaseHandler {
 	path := "C:\\Users\\Adam\\.oci\\config.ini"
-	db := Database.NewOracleConnection(path, "uk-london-1")
+	db := Database.NewOracleConnection(path, common.RegionLHR)
 	return &DatabaseHandler{
 		Database: db,
 	}
