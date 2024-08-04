@@ -9,12 +9,12 @@ import (
 )
 
 type Database interface {
-	Connect() error
-	Close() error
-	SelectTable(string) error
-	Get(string, string) (error, *string)
-	Put(interface{}) error
-	Delete(string, string) error
+	Connect() *DataError
+	Close() *DataError
+	SelectTable(string) *DataError
+	Get(string, string) (*DataError, *string)
+	Put(interface{}) *DataError
+	Delete(string, string) *DataError
 }
 
 type OracleDB struct {
@@ -25,10 +25,11 @@ type OracleDB struct {
 	Table      *string
 }
 
-func (db *OracleDB) Connect() error {
+func (db *OracleDB) Connect() *DataError {
 	AuthProv, err := iam.NewSignatureProviderFromFile(db.ConfigPath, "", "", "")
 	if err != nil {
-		return NewDatabaseError("Connection:", err.Error())
+		trace := NewTraceErr("Connection:", err.Error())
+		return NewDataError(trace, "Connection")
 	}
 
 	cfg := nosqldb.Config{
@@ -38,44 +39,50 @@ func (db *OracleDB) Connect() error {
 
 	client, err := nosqldb.NewClient(cfg)
 	if err != nil {
-		return NewDatabaseError("Client Creation:", err.Error())
+		trace := NewTraceErr("Client Creation:", err.Error())
+		return NewDataError(trace, "Creation")
 	}
 
 	db.Client = client
+	db.Connected = true
 	return nil
 }
 
-func (db *OracleDB) Close() error {
+func (db *OracleDB) Close() *DataError {
 	if db.Connected == false {
-		return NewDatabaseError("Client Closing:", "No connection is open")
+		trace := NewTraceErr("Client Closing:", "No connection is open")
+		return NewDataError(trace, "No Connection")
 	}
 
 	if db.Client == nil {
-		return NewDatabaseError("Client Closing:", "No client to close")
+		trace := NewTraceErr("Client Closing:", "No client to close")
+		return NewDataError(trace, "No Client")
 	}
 
 	err := db.Client.Close()
 	if err != nil {
-		return NewDatabaseError("Client Closing:", err.Error())
+		trace := NewTraceErr("Client Closing:", err.Error())
+		return NewDataError(trace, "Closing")
 	}
 	db.Connected = false
-
 	return nil
 }
 
-func (db *OracleDB) SelectTable(name string) error {
+func (db *OracleDB) SelectTable(name string) *DataError {
 	db.Table = &name
 	return nil
 }
 
-func (db *OracleDB) Get(Field string, Value string) (error, *string) {
+func (db *OracleDB) Get(Field string, Value string) (*DataError, *string) {
 	callTrace := fmt.Sprintf("\n\tTable:\t%s\n\tGet:\t%s:\t%s", *db.Table, Field, Value)
 	if !db.Connected {
-		return NewDatabaseError(callTrace, "Client not connected"), nil
+		trace := NewTraceErr(callTrace, "Client not connected")
+		return NewDataError(trace, "No Connection"), nil
 	}
 
 	if db.Table == nil {
-		return NewDatabaseError(callTrace, "Table is nil"), nil
+		trace := NewTraceErr(callTrace, "Table is nil")
+		return NewDataError(trace, "No Table Selected"), nil
 	}
 
 	keyMap := &types.MapValue{}
@@ -86,27 +93,32 @@ func (db *OracleDB) Get(Field string, Value string) (error, *string) {
 	}
 	res, err := db.Client.Get(req)
 	if err != nil {
-		return NewDatabaseError(callTrace, err.Error()), nil
+		trace := NewTraceErr(callTrace, err.Error())
+		return NewDataError(trace, "Get Error"), nil
 	}
 	if !res.RowExists() {
-		return NewDatabaseError(callTrace, "No row exists"), nil
+		trace := NewTraceErr(callTrace, "No row exists")
+		return NewDataError(trace, "No Row"), nil
 	}
 	json := res.ValueAsJSON()
 	return nil, &json
 }
 
-func (db *OracleDB) Put(record interface{}) error {
+func (db *OracleDB) Put(record interface{}) *DataError {
 	callTrace := fmt.Sprintf("\n\tTable:\t%s\n\tPut:\t%+v", *db.Table, record)
 	if !db.Connected {
-		return NewDatabaseError(callTrace, "Client not connected")
+		trace := NewTraceErr(callTrace, "Client not connected")
+		return NewDataError(trace, "No Connection")
 	}
 
 	if db.Table == nil {
-		return NewDatabaseError(callTrace, "Table is nil")
+		trace := NewTraceErr(callTrace, "Table is nil")
+		return NewDataError(trace, "No Table Selected")
 	}
 
 	if record == nil {
-		return NewDatabaseError(callTrace, "Record is empty")
+		trace := NewTraceErr(callTrace, "Record is empty")
+		return NewDataError(trace, "No Record")
 	}
 
 	putRq := &nosqldb.PutRequest{
@@ -116,25 +128,29 @@ func (db *OracleDB) Put(record interface{}) error {
 	}
 	res, err := db.Client.Put(putRq)
 	if err != nil {
-		return NewDatabaseError(callTrace, err.Error())
+		trace := NewTraceErr(callTrace, err.Error())
+		return NewDataError(trace, "Put Error")
 	}
 
 	if !res.Success() {
 		why := fmt.Sprintf("Put failed: %s", res.String())
-		return NewDatabaseError(callTrace, why)
+		trace := NewTraceErr(callTrace, why)
+		return NewDataError(trace, "Put Error")
 	}
 
 	return nil
-
 }
 
-func (db *OracleDB) Delete(key string, val string) error {
+func (db *OracleDB) Delete(key string, val string) *DataError {
 	callTrace := fmt.Sprintf("\n\tTable:\t%s\n\tDelete:\t%s :\t%s", *db.Table, key, val)
 	if !db.Connected {
-		return NewDatabaseError(callTrace, "Client not connected")
+		trace := NewTraceErr(callTrace, "Client not connected")
+		return NewDataError(trace, "No Connection")
 	}
+
 	if db.Table == nil {
-		return NewDatabaseError(callTrace, "Table is nil")
+		trace := NewTraceErr(callTrace, "Table is nil")
+		return NewDataError(trace, "No Table Selected")
 	}
 
 	deleteMap := &types.MapValue{}
@@ -146,28 +162,46 @@ func (db *OracleDB) Delete(key string, val string) error {
 
 	res, err := db.Client.Delete(deleteRq)
 	if err != nil {
-		return NewDatabaseError(callTrace, err.Error())
+		trace := NewTraceErr(callTrace, err.Error())
+		return NewDataError(trace, "Delete Error")
 	}
 
 	if !res.Success {
 		why := fmt.Sprintf("Delete failed: %s", res.String())
-		return NewDatabaseError(callTrace, why)
+		trace := NewTraceErr(callTrace, why)
+		return NewDataError(trace, "Delete Error")
 	}
 
 	return nil
 }
 
-type DbError struct {
+type TraceErr struct {
 	message string
 }
 
-func (e *DbError) Error() string {
+func (e *TraceErr) Error() string {
 	return fmt.Sprintf("[DatabaseError] %s", e.message)
 }
 
-func NewDatabaseError(where string, what string) *DbError {
+func NewTraceErr(where string, what string) *TraceErr {
 	msg := fmt.Sprintf("\t%s \n\t%s", where, what)
-	return &DbError{message: msg}
+	return &TraceErr{message: msg}
+}
+
+func NewDataError(err *TraceErr, Type string) *DataError {
+	return &DataError{
+		error: err,
+		Type:  Type,
+	}
+}
+
+type DataError struct {
+	error
+	Type string
+}
+
+func (e *DataError) ErrorType() string {
+	return e.Type
 }
 
 func NewOracleConnection(filepath string, region common.Region) *OracleDB {
