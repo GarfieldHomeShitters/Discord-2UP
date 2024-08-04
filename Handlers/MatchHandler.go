@@ -21,19 +21,16 @@ type MatchNotifier interface {
 	NotifyUser(context context.Context, Matches *[]MatchFinder.Match) error
 }
 
-type MatchHandler struct {
-	MatchNotifier MatchNotifier
-}
-
 type DiscordMatchNotifier struct {
 	Url   string
-	Ping  DiscordPingType
+	Ping  DiscordPing
 	Color string
 }
 
-type DiscordPingType struct {
-	Type string
-	IDs  []string
+type DiscordPing struct {
+	ParseStrings []string
+	UserIDs      []string
+	RoleIDs      []string
 }
 
 func (n *DiscordMatchNotifier) NotifyUser(ctx context.Context, Matches *[]MatchFinder.Match) error {
@@ -111,7 +108,23 @@ func (n *DiscordMatchNotifier) CreateEmbeds(Matches *[]MatchFinder.Match) []webh
 
 func (n *DiscordMatchNotifier) CreateContent() string {
 	strBuf := &bytes.Buffer{}
-	for i, v := range n.Ping.IDs {
+	for i, v := range n.Ping.ParseStrings {
+		if i > 0 {
+			strBuf.WriteByte(' ')
+		}
+		strBuf.WriteString("<@")
+		strBuf.WriteString(v)
+		strBuf.WriteString(">")
+	}
+	for i, v := range n.Ping.UserIDs {
+		if i > 0 {
+			strBuf.WriteByte(' ')
+		}
+		strBuf.WriteString("<@")
+		strBuf.WriteString(v)
+		strBuf.WriteString(">")
+	}
+	for i, v := range n.Ping.RoleIDs {
 		if i > 0 {
 			strBuf.WriteByte(' ')
 		}
@@ -123,14 +136,21 @@ func (n *DiscordMatchNotifier) CreateContent() string {
 }
 
 func (n *DiscordMatchNotifier) CreateAllowedMentions() (*webhook_manager.AllowedMentions, error) {
-	switch n.Ping.Type {
-	case "User":
-		return &webhook_manager.AllowedMentions{Parse: nil, Users: &n.Ping.IDs, Roles: nil}, nil
-	case "Parse":
-		return &webhook_manager.AllowedMentions{Parse: &n.Ping.IDs, Users: nil, Roles: nil}, nil
-	case "Roles":
-		return &webhook_manager.AllowedMentions{Parse: nil, Users: nil, Roles: &n.Ping.IDs}, nil
-	default:
-		return nil, MatchNotificationError{err: "Invalid Ping Type Specified"}
+	return &webhook_manager.AllowedMentions{Parse: &n.Ping.ParseStrings, Users: &n.Ping.UserIDs, Roles: &n.Ping.RoleIDs}, nil
+}
+
+func NewPingType(parse []string, users []string, roles []string) *DiscordPing {
+	return &DiscordPing{
+		ParseStrings: parse,
+		UserIDs:      users,
+		RoleIDs:      roles,
+	}
+}
+
+func NewDiscordMatchNotifier(url string, ping DiscordPing, colour string) *DiscordMatchNotifier {
+	return &DiscordMatchNotifier{
+		Url:   url,
+		Ping:  ping,
+		Color: colour,
 	}
 }
