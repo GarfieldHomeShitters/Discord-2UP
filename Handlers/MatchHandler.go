@@ -34,6 +34,10 @@ type DiscordPing struct {
 }
 
 func (n *DiscordMatchNotifier) NotifyUser(ctx context.Context, Matches *[]MatchFinder.Match) error {
+	if len(*Matches) == 0 {
+		return fmt.Errorf("no_matches")
+	}
+
 	embeds := n.CreateEmbeds(Matches)
 	content := n.CreateContent()
 	mentions, err := n.CreateAllowedMentions()
