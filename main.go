@@ -1,7 +1,6 @@
 package main
 
 import (
-	webhook "Adam/discord-twoup/Discord"
 	"Adam/discord-twoup/Handlers"
 	"Adam/discord-twoup/MatchFinder"
 	"context"
@@ -11,45 +10,43 @@ import (
 
 const url = "https://canary.discord.com/api/webhooks/1267996258203865201/ZenhYVAIrjy3YLLkqtAjSIEGJ3W6UW2Qn627G41IrcxiaAZrSTGjegYR9zDbwfUkmD4v"
 
-func main() {
+type NotificationHandler struct {
+	Handlers.MatchNotifier
+	Handlers.ErrorHandler
+}
 
-	var MatchHandler = &Handlers.MatchHandler{
-		MatchNotifier: &Handlers.DiscordMatchNotifier{
-			Ping:  Handlers.DiscordPingType{Type: "User", IDs: []string{"261512678269255681"}},
-			Url:   url,
-			Color: "1207889",
-		},
+func CreateNotificationHandler() *NotificationHandler {
+	UserIDs := []string{"261512678269255681"}
+	ping := Handlers.NewPingType(nil, UserIDs, nil)
+	MatchHandler := Handlers.NewDiscordMatchNotifier(url, *ping, "1207889")
+	ErrorHandler := Handlers.NewDiscordErrorHandler(url, "15548997")
+	return &NotificationHandler{
+		MatchNotifier: MatchHandler,
+		ErrorHandler:  ErrorHandler,
 	}
+}
+
+func main() {
+	Notifier := CreateNotificationHandler()
 
 	qt := MatchFinder.TwoUp
 	qR, err := MatchFinder.Find(qt)
 	if err != nil {
-		err := webhook.SendMessage(url, createPlainMessage(err.Error()))
-		if err != nil {
+		notificationErr := Notifier.LogError(err)
+		if notificationErr != nil {
 			errStr := fmt.Sprintf("Error logging error: %v\n", err)
 			log.Println(errStr)
 			return
 		}
 	}
-	err = MatchHandler.MatchNotifier.NotifyUser(context.Background(), &qR)
+	err = Notifier.NotifyUser(context.Background(), &qR)
 	if err != nil {
 		fmt.Println("Failed Webhook:", err)
-		err = webhook.SendMessage(url, logError(err))
-		if err != nil {
+		notificationErr := Notifier.LogError(err)
+		if notificationErr != nil {
 			errStr := fmt.Sprintf("Error logging error: %v\n", err)
 			log.Println(errStr)
 			return
 		}
 	}
-}
-
-func createPlainMessage(content string) webhook.Message {
-	message := webhook.Message{
-		Content: &content,
-	}
-	return message
-}
-
-func logError(err error) webhook.Message {
-	return createPlainMessage(err.Error())
 }
