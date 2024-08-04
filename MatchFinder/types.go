@@ -14,6 +14,8 @@ type Match struct {
 	EventName     string `json:"eventName"`
 	SelectionName string `json:"selectionName"`
 	Rating        string `json:"rating"`
+	ID            string `json:"id"`
+	StartDate     string `json:"startAt"`
 }
 
 type Back struct {
