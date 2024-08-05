@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"github.com/oracle/nosql-go-sdk/nosqldb/common"
 	"log"
+	"time"
 )
 
 const url = "https://canary.discord.com/api/webhooks/1267996258203865201/ZenhYVAIrjy3YLLkqtAjSIEGJ3W6UW2Qn627G41IrcxiaAZrSTGjegYR9zDbwfUkmD4v"
@@ -47,6 +48,26 @@ func main() {
 		panic(typedErr.Error())
 	}
 
+	ticker := time.NewTicker(30 * time.Minute)
+	defer ticker.Stop()
+
+	if err := PerformMatchTask(Notifier, Db); err != nil {
+		Notifier.LogTypedError(err)
+		panic(err.Error())
+	}
+
+	for {
+		select {
+		case <-ticker.C:
+			if err := PerformMatchTask(Notifier, Db); err != nil {
+				Notifier.LogTypedError(err)
+				return
+			}
+		}
+	}
+}
+
+func PerformMatchTask(Notifier *NotificationHandler, Db *DatabaseHandler) Handlers.TypedError {
 	qR, err := MatchFinder.Find(MatchFinder.TwoUp)
 	if err != nil {
 		notificationErr := Notifier.LogError(err)
@@ -54,7 +75,6 @@ func main() {
 			errStr := fmt.Sprintf("Error logging error: %v\n", err)
 			log.Panic(errStr)
 		}
-		return
 	}
 	// TODO: Later -> handle no new matches and softly inform user -> log in console instead of via discord.
 	getErr, newMatches := filterMatches(qR, Db)
@@ -64,7 +84,7 @@ func main() {
 			errStr := fmt.Sprintf("Error logging error: %v\n", err)
 			log.Panic(errStr)
 		}
-		return
+		log.Panic(getErr.Error())
 	}
 
 	err = Notifier.NotifyUser(context.Background(), &newMatches)
@@ -75,21 +95,23 @@ func main() {
 			errStr := fmt.Sprintf("Error logging error: %v\n", err)
 			log.Panic(errStr)
 		}
-		return
+		log.Panic(err.Error())
 	}
 
 	for _, v := range newMatches {
 		item := NewDatabaseItem(v)
-		typedErr = Db.Put(item)
+		typedErr := Db.Put(item)
 		if typedErr != nil {
 			notificationErr := Notifier.LogTypedError(typedErr)
 			if notificationErr != nil {
 				errStr := fmt.Sprintf("Error logging error: %v\n", typedErr)
 				log.Fatal(errStr)
 			}
-			return
+			log.Panic(typedErr.Error())
 		}
 	}
+
+	return nil
 }
 
 func CreateNotificationHandler() *NotificationHandler {
