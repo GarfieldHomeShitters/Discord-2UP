@@ -5,6 +5,8 @@ import (
 	"Adam/discord-twoup/Handlers"
 	"Adam/discord-twoup/MatchFinder"
 	"context"
+	"crypto/md5"
+	"encoding/hex"
 	"fmt"
 	"github.com/oracle/nosql-go-sdk/nosqldb/common"
 	"log"
@@ -68,7 +70,8 @@ func main() {
 }
 
 func PerformMatchTask(Notifier *NotificationHandler, Db *DatabaseHandler) Handlers.TypedError {
-	qR, err := MatchFinder.Find(MatchFinder.TwoUp)
+	stake := 20.00
+	qR, err := MatchFinder.Find(MatchFinder.TwoUp, stake)
 	if err != nil {
 		notificationErr := Notifier.LogError(err)
 		if notificationErr != nil {
@@ -87,7 +90,7 @@ func PerformMatchTask(Notifier *NotificationHandler, Db *DatabaseHandler) Handle
 		log.Panic(getErr.Error())
 	}
 
-	err = Notifier.NotifyUser(context.Background(), &newMatches)
+	err = Notifier.NotifyUser(context.Background(), &newMatches, stake)
 	if err != nil && err.Error() != "no_matches" {
 		fmt.Println("Failed Webhook:", err)
 		notificationErr := Notifier.LogError(err)
@@ -127,7 +130,7 @@ func CreateNotificationHandler() *NotificationHandler {
 
 func CreateDatabaseHandler() *DatabaseHandler {
 	path := "C:\\Users\\Adam\\.oci\\config.ini"
-	db := Database.NewOracleConnection(path, common.RegionLHR)
+	db := Database.NewOracleConnection(path, common.RegionLHR, time.Hour*3)
 	return &DatabaseHandler{
 		Database: db,
 	}
@@ -136,7 +139,8 @@ func CreateDatabaseHandler() *DatabaseHandler {
 func filterMatches(matches []MatchFinder.Match, Db *DatabaseHandler) (*Database.DataError, []MatchFinder.Match) {
 	var newMatches []MatchFinder.Match
 	for i, v := range matches {
-		getErr, _ := Db.Get("id", v.ID)
+		item := NewDatabaseItem(v)
+		getErr, _ := Db.Get("id", item.ID)
 		if getErr == nil {
 			continue
 		}
@@ -153,8 +157,10 @@ func filterMatches(matches []MatchFinder.Match, Db *DatabaseHandler) (*Database.
 }
 
 func NewDatabaseItem(match MatchFinder.Match) *DbItem {
+	shortIdBytes := md5.Sum([]byte(match.ID))
+	shortID := hex.EncodeToString(shortIdBytes[:])
 	return &DbItem{
-		ID:             match.ID,
+		ID:             shortID,
 		EventStartDate: match.StartDate,
 	}
 }
