@@ -120,7 +120,7 @@ func (n *DiscordMatchNotifier) CreateEmbeds(Matches *[]MatchFinder.Match, stake 
 
 		shortIdBytes := md5.Sum([]byte(match.ID))
 		shortID := hex.EncodeToString(shortIdBytes[:])
-		footerStr := fmt.Sprintf("MD5: %s ID: %s", match.ID, shortID)
+		footerStr := fmt.Sprintf("MD5: %s", shortID)
 
 		Footer := webhook_manager.Footer{
 			Text: &footerStr,
