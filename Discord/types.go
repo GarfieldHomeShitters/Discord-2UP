@@ -10,6 +10,7 @@ type Embed struct {
 	Title  *string  `json:"title,omitempty"`
 	Color  *string  `json:"color,omitempty"`
 	Fields *[]Field `json:"fields,omitempty"`
+	Footer *Footer  `json:"footer,omitempty"`
 }
 
 type AllowedMentions struct {
@@ -22,4 +23,9 @@ type Field struct {
 	Name   string  `json:"name,omitempty"`
 	Value  *string `json:"value,omitempty"`
 	Inline *bool   `json:"inline,omitempty"`
+}
+
+type Footer struct {
+	Text    *string `json:"text,omitempty"`
+	IconUrl *string `json:"icon_url,omitempty"`
 }
