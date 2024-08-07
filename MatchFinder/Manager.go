@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strconv"
 )
 
 const (
@@ -27,10 +28,10 @@ func (e MatchError) Error() string {
 
 const url = "https://api.oddsplatform.profitaccumulator.com/graphql"
 
-func Find(queryType QueryType) ([]Match, error) {
+func Find(queryType QueryType, stake float64) ([]Match, error) {
 	switch queryType {
 	case TwoUp:
-		resp, err := Get2UpData()
+		resp, err := Get2UpData(stake)
 		if err != nil {
 			return nil, MatchError{fmt.Sprintf("Error getting 2UP Data: %s", err.Error())}
 		}
@@ -39,7 +40,7 @@ func Find(queryType QueryType) ([]Match, error) {
 	return nil, MatchError{fmt.Sprintf("Invalid query type")}
 }
 
-func Get2UpData() ([]Match, error) {
+func Get2UpData(stake float64) ([]Match, error) {
 	var queryResponse MatchResponse
 	MinRating := "96"
 	MinOdds := "2"
@@ -61,7 +62,7 @@ func Get2UpData() ([]Match, error) {
 		LastUpdate:   21600,
 		MarketGroups: []string{"match-odds"},
 		Sports:       []string{"soccer"},
-		EventGroups:  []string{},
+		EventGroups:  []string{"english-premier-league", "uefa-champions-league", "uefa-europa-league", "german-bundesliga", "italian-serie-a", "spanish-la-liga", "french-ligue-1", "english-fa-cup", "scottish-premiership"},
 		CommissionRates: []CommisionRate{
 			{Exchange: "betdaq", Rate: 0},
 			{Exchange: "betfair", Rate: 5},
@@ -79,6 +80,14 @@ func Get2UpData() ([]Match, error) {
 	err = json.Unmarshal(response, &queryResponse)
 	if err != nil {
 		return nil, err
+	}
+
+	for i := range queryResponse.Data.Matches {
+		rating, pfErr := strconv.ParseFloat(queryResponse.Data.Matches[i].Rating, 32)
+		if pfErr != nil {
+			return nil, pfErr
+		}
+		queryResponse.Data.Matches[i].QualLoss = float32((stake * (rating - 100)) / 100)
 	}
 
 	return queryResponse.Data.Matches, nil
