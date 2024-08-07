@@ -5,6 +5,8 @@ import (
 	"Adam/discord-twoup/MatchFinder"
 	"bytes"
 	"context"
+	"crypto/md5"
+	"encoding/hex"
 	"fmt"
 	"time"
 )
@@ -18,7 +20,7 @@ func (e MatchNotificationError) Error() string {
 }
 
 type MatchNotifier interface {
-	NotifyUser(context context.Context, Matches *[]MatchFinder.Match) error
+	NotifyUser(context context.Context, Matches *[]MatchFinder.Match, stake float64) error
 }
 
 type DiscordMatchNotifier struct {
@@ -33,12 +35,12 @@ type DiscordPing struct {
 	RoleIDs      []string
 }
 
-func (n *DiscordMatchNotifier) NotifyUser(ctx context.Context, Matches *[]MatchFinder.Match) error {
+func (n *DiscordMatchNotifier) NotifyUser(ctx context.Context, Matches *[]MatchFinder.Match, stake float64) error {
 	if len(*Matches) == 0 {
 		return fmt.Errorf("no_matches")
 	}
 
-	embeds := n.CreateEmbeds(Matches)
+	embeds := n.CreateEmbeds(Matches, stake)
 	content := n.CreateContent()
 	mentions, err := n.CreateAllowedMentions()
 	ctx, cancel := context.WithTimeout(ctx, 500*time.Millisecond)
@@ -66,20 +68,32 @@ func (n *DiscordMatchNotifier) NotifyUser(ctx context.Context, Matches *[]MatchF
 	}
 }
 
-func (n *DiscordMatchNotifier) CreateEmbeds(Matches *[]MatchFinder.Match) []webhook_manager.Embed {
+func (n *DiscordMatchNotifier) CreateEmbeds(Matches *[]MatchFinder.Match, stake float64) []webhook_manager.Embed {
 	inline, colour := true, n.Color
 	var Embeds []webhook_manager.Embed
-
+	stringStake := fmt.Sprintf("£%.2f", stake)
 	for _, match := range *Matches {
+		QL := fmt.Sprintf("£%.2f", match.QualLoss)
+
+		Start, err := time.Parse("2006-01-02T15:04:05.000Z", match.StartDate)
+		if err != nil {
+			panic(err)
+		}
+		epoch := fmt.Sprintf("<t:%d:R>", Start.Unix())
+
 		Fields := []webhook_manager.Field{
-			{
-				Name:   `Event Name`,
-				Value:  &match.EventName,
-				Inline: &inline,
-			},
 			{
 				Name:   `Team Selection`,
 				Value:  &match.SelectionName,
+				Inline: &inline,
+			},
+			{
+				Name:   `Stake`,
+				Value:  &stringStake,
+				Inline: &inline,
+			}, {
+				Name:   `Q/L`,
+				Value:  &QL,
 				Inline: &inline,
 			},
 			{
@@ -97,6 +111,19 @@ func (n *DiscordMatchNotifier) CreateEmbeds(Matches *[]MatchFinder.Match) []webh
 				Value:  &match.Rating,
 				Inline: &inline,
 			},
+			{
+				Name:   `Start Date`,
+				Value:  &epoch,
+				Inline: &inline,
+			},
+		}
+
+		shortIdBytes := md5.Sum([]byte(match.ID))
+		shortID := hex.EncodeToString(shortIdBytes[:])
+		footerStr := fmt.Sprintf("MD5: %s ID: %s", match.ID, shortID)
+
+		Footer := webhook_manager.Footer{
+			Text: &footerStr,
 		}
 
 		Embeds = append(Embeds,
@@ -104,6 +131,7 @@ func (n *DiscordMatchNotifier) CreateEmbeds(Matches *[]MatchFinder.Match) []webh
 				Title:  &match.EventName,
 				Color:  &colour,
 				Fields: &Fields,
+				Footer: &Footer,
 			})
 	}
 
