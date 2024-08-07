@@ -16,6 +16,7 @@ type Match struct {
 	Rating        string `json:"rating"`
 	ID            string `json:"id"`
 	StartDate     string `json:"startAt"`
+	QualLoss      float32
 }
 
 type Back struct {
