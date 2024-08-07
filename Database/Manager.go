@@ -6,6 +6,7 @@ import (
 	"github.com/oracle/nosql-go-sdk/nosqldb/auth/iam"
 	"github.com/oracle/nosql-go-sdk/nosqldb/common"
 	"github.com/oracle/nosql-go-sdk/nosqldb/types"
+	"time"
 )
 
 type Database interface {
@@ -15,6 +16,7 @@ type Database interface {
 	Get(string, string) (*DataError, *string)
 	Put(interface{}) *DataError
 	Delete(string, string) *DataError
+	CleanupCache()
 }
 
 type OracleDB struct {
@@ -23,6 +25,7 @@ type OracleDB struct {
 	Region     common.Region
 	Client     *nosqldb.Client
 	Table      *string
+	cache      *Cache[string, any]
 }
 
 func (db *OracleDB) Connect() *DataError {
@@ -85,6 +88,13 @@ func (db *OracleDB) Get(Field string, Value string) (*DataError, *string) {
 		return NewDataError(trace, "No Table Selected"), nil
 	}
 
+	v, ok := db.cache.Get(Field)
+	if ok {
+		fmt.Println("Cache Hit")
+		return nil, v.(*string)
+	}
+	fmt.Println("Cache Miss")
+
 	keyMap := &types.MapValue{}
 	keyMap.Put(Field, Value)
 	req := &nosqldb.GetRequest{
@@ -101,6 +111,8 @@ func (db *OracleDB) Get(Field string, Value string) (*DataError, *string) {
 		return NewDataError(trace, "No Row"), nil
 	}
 	json := res.ValueAsJSON()
+	db.cache.Set(Field, json)
+	fmt.Println("Cache Updated!")
 	return nil, &json
 }
 
@@ -137,7 +149,6 @@ func (db *OracleDB) Put(record interface{}) *DataError {
 		trace := NewTraceErr(callTrace, why)
 		return NewDataError(trace, "Put Error")
 	}
-
 	return nil
 }
 
@@ -171,8 +182,12 @@ func (db *OracleDB) Delete(key string, val string) *DataError {
 		trace := NewTraceErr(callTrace, why)
 		return NewDataError(trace, "Delete Error")
 	}
-
+	db.cache.Delete(key)
 	return nil
+}
+
+func (db *OracleDB) CleanupCache() {
+	db.cache.Cleanup()
 }
 
 type TraceErr struct {
@@ -204,12 +219,13 @@ func (e *DataError) ErrorType() string {
 	return e.Type
 }
 
-func NewOracleConnection(filepath string, region common.Region) *OracleDB {
+func NewOracleConnection(filepath string, region common.Region, cacheTTL time.Duration) *OracleDB {
 	return &OracleDB{
 		Connected:  false,
 		ConfigPath: filepath,
 		Region:     region,
 		Client:     nil,
 		Table:      nil,
+		cache:      NewCache[string, any](cacheTTL),
 	}
 }
