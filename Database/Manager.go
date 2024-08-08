@@ -1,6 +1,7 @@
 package Database
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/oracle/nosql-go-sdk/nosqldb"
 	"github.com/oracle/nosql-go-sdk/nosqldb/auth/iam"
@@ -88,10 +89,12 @@ func (db *OracleDB) Get(Field string, Value string) (*DataError, *string) {
 		return NewDataError(trace, "No Table Selected"), nil
 	}
 
-	v, ok := db.cache.Get(Field)
+	v, ok := db.cache.Get(Value)
 	if ok {
 		fmt.Println("Cache Hit")
-		return nil, v.(*string)
+		jsonBytes, _ := json.Marshal(v)
+		jsonString := string(jsonBytes)
+		return nil, &jsonString
 	}
 	fmt.Println("Cache Miss")
 
@@ -111,7 +114,7 @@ func (db *OracleDB) Get(Field string, Value string) (*DataError, *string) {
 		return NewDataError(trace, "No Row"), nil
 	}
 	json := res.ValueAsJSON()
-	db.cache.Set(Field, json)
+	db.cache.Set(Value, json)
 	fmt.Println("Cache Updated!")
 	return nil, &json
 }
