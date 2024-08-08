@@ -51,6 +51,7 @@ func main() {
 	}
 
 	ticker := time.NewTicker(30 * time.Minute)
+	tickCount := 0
 	defer ticker.Stop()
 
 	if err := PerformMatchTask(Notifier, Db); err != nil {
@@ -61,9 +62,14 @@ func main() {
 	for {
 		select {
 		case <-ticker.C:
+			tickCount++
 			if err := PerformMatchTask(Notifier, Db); err != nil {
 				Notifier.LogTypedError(err)
 				return
+			}
+
+			if tickCount%6 == 0 {
+				Db.CleanupCache()
 			}
 		}
 	}
