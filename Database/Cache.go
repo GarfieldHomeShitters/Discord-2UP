@@ -42,7 +42,7 @@ func (c *Cache[K, V]) Get(key K) (value V, ok bool) {
 		return blankVal, false
 	}
 
-	item.LastAccess = time.Now().Unix()
+	item.LastAccess = time.Now().UnixNano()
 	c.mu.Lock()
 	c.items[key] = item
 	c.mu.Unlock()
